@@ -1,5 +1,5 @@
 [package]
-name = "segtree"
+name = "two_dimensional_segtree"
 version = "0.1.0"
 authors = ["ngtkana <ngtkana@gmail.com>"]
 edition = "2018"
@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 segtree_value = { path = "../segtree_value" }
+
+[dev-dependencies]
+itertools = "0.9.0"

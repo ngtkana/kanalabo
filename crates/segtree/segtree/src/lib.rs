@@ -1,16 +1,5 @@
-use std::{fmt::Debug, ops::Range};
-
-pub trait Value: Debug + Clone {
-    fn op(&self, rhs: &Self) -> Self;
-
-    fn op_assign_from_the_right(&mut self, rhs: &Self) {
-        *self = self.op(rhs);
-    }
-
-    fn op_assign_from_the_left(&mut self, rhs: &Self) {
-        *self = rhs.op(self);
-    }
-}
+use segtree_value::Value;
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct Segtree<T>
@@ -87,25 +76,27 @@ mod tests {
 
     #[test]
     fn test_string_concatenation() {
-        impl Value for String {
-            fn op(&self, b: &String) -> String {
-                self.chars().chain(b.chars()).collect()
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct Cat(String);
+        impl Value for Cat {
+            fn op(&self, b: &Cat) -> Cat {
+                Cat(self.0.chars().chain(b.0.chars()).collect())
             }
         }
         use std::iter::once;
         let a = ('0'..='9')
-            .map(|c| once(c).collect::<String>())
+            .map(|c| Cat(once(c).collect::<String>()))
             .collect::<Vec<_>>();
         let mut seg = Segtree::with_slice(a.as_slice());
 
-        assert_eq!(seg.fold(3..5), Some("34".to_owned()));
-        assert_eq!(seg.fold(2..9), Some("2345678".to_owned()));
-        assert_eq!(seg.fold(0..4), Some("0123".to_owned()));
+        assert_eq!(seg.fold(3..5), Some(Cat("34".to_owned())));
+        assert_eq!(seg.fold(2..9), Some(Cat("2345678".to_owned())));
+        assert_eq!(seg.fold(0..4), Some(Cat("0123".to_owned())));
         assert_eq!(seg.fold(8..8), None);
 
-        seg.set(3, "d".to_owned());
-        seg.set(6, "g".to_owned());
-        assert_eq!(seg.fold(0..4), Some("012d".to_owned()));
-        assert_eq!(seg.fold(2..9), Some("2d45g78".to_owned()));
+        seg.set(3, Cat("d".to_owned()));
+        seg.set(6, Cat("g".to_owned()));
+        assert_eq!(seg.fold(0..4), Some(Cat("012d".to_owned())));
+        assert_eq!(seg.fold(2..9), Some(Cat("2d45g78".to_owned())));
     }
 }
