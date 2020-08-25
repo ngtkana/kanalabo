@@ -1,103 +1,3 @@
-// dbg {{{
-#[allow(dead_code)]
-mod dbg {
-    #[macro_export]
-    macro_rules! lg {
-        () => {
-            $crate::eprintln!("[{}:{}]", $crate::file!(), $crate::line!());
-        };
-        ($val:expr) => {
-            match $val {
-                tmp => {
-                    eprintln!("[{}:{}] {} = {:?}",
-                        file!(), line!(), stringify!($val), &tmp);
-                    tmp
-                }
-            }
-        };
-        ($val:expr,) => { lg!($val) };
-        ($($val:expr),+ $(,)?) => {
-            ($(lg!($val)),+,)
-        };
-    }
-
-    #[macro_export]
-    macro_rules! msg {
-            () => {
-                compile_error!();
-            };
-            ($msg:expr) => {
-                $crate::eprintln!("[{}:{}][{}]", $crate::file!(), $crate::line!(), $msg);
-            };
-            ($msg:expr, $val:expr) => {
-                match $val {
-                    tmp => {
-                        eprintln!("[{}:{}][{}] {} = {:?}",
-                            file!(), line!(), $msg, stringify!($val), &tmp);
-                        tmp
-                    }
-                }
-            };
-            ($msg:expr, $val:expr,) => { msg!($msg, $val) };
-            ($msg:expr, $($val:expr),+ $(,)?) => {
-                ($(msg!($msg, $val)),+,)
-            };
-        }
-
-    #[macro_export]
-    macro_rules! tabular {
-        ($val:expr) => {
-            eprintln!(
-                "[{}:{}] {}:\n{:?}",
-                file!(),
-                line!(),
-                stringify!($val),
-                crate::dbg::Tabular($val)
-            );
-        };
-    }
-
-    use std::fmt::{Debug, Formatter};
-
-    #[derive(Clone)]
-    pub struct Tabular<'a, T: Debug>(pub &'a [T]);
-    impl<'a, T: Debug> Debug for Tabular<'a, T> {
-        fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-            for i in 0..self.0.len() {
-                writeln!(f, "{:2} | {:?}", i, &self.0[i])?;
-            }
-            Ok(())
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct BooleanTable<'a>(pub &'a [Vec<bool>]);
-    impl<'a> Debug for BooleanTable<'a> {
-        fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-            for i in 0..self.0.len() {
-                writeln!(f, "{:2} | {:?}", i, BooleanSlice(&self.0[i]))?;
-            }
-            Ok(())
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct BooleanSlice<'a>(pub &'a [bool]);
-    impl<'a> Debug for BooleanSlice<'a> {
-        fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-            write!(
-                f,
-                "{}",
-                self.0
-                    .iter()
-                    .map(|&b| if b { "1 " } else { "0 " })
-                    .collect::<String>()
-            )?;
-            Ok(())
-        }
-    }
-}
-// }}}
 use segtree_value::Value;
 use std::{iter::successors, ops::Range};
 
@@ -156,7 +56,6 @@ where
         Range { mut start, mut end }: Range<usize>,
     ) -> Option<T> {
         assert!(start <= end, "変な区間を渡すのをやめませんか？");
-        lg!((i, start, end));
         start += self.width;
         end += self.width;
         if start == end {
@@ -239,7 +138,6 @@ where
                 self.update_cell_vertically_unckecked(i, j);
             }
         }
-        tabular!(&self.table);
     }
 
     fn update_cell_horizontally_unckeckd(&mut self, i: usize, j: usize) {
