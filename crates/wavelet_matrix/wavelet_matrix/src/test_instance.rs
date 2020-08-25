@@ -29,6 +29,14 @@ impl Drop for TestInstance {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct IterationSpec {
+    pub large_instance: usize,
+    pub small_instance: usize,
+    pub large_query: usize,
+    pub small_query: usize,
+}
+
 impl TestInstance {
     pub fn new_large() -> Self {
         Self::with_len_and_value_max(VEC_SIZE, VALUE_LIMIT_LARGE)
@@ -50,7 +58,25 @@ impl TestInstance {
         res
     }
 
-    pub fn compare_many<T, I, A, F, G>(&self, iter: usize, init: I, f: F, g: G)
+    pub fn create_and_compare_many<T, I, A, F, G>(spec: &IterationSpec, init: I, f: F, g: G)
+    where
+        T: Debug + Eq,
+        A: Debug,
+        I: Fn(&Self) -> A,
+        F: Fn(&Vec<u32>, &A) -> T,
+        G: Fn(&WaveletMatrix, &A) -> T,
+    {
+        for _ in 0..spec.large_instance {
+            let instance = Self::new_large();
+            instance.compare_many(spec.large_query, &init, &f, &g);
+        }
+        for _ in 0..spec.small_instance {
+            let instance = Self::new_small();
+            instance.compare_many(spec.small_instance, &init, &f, &g);
+        }
+    }
+
+    pub fn compare_many<T, I, A, F, G>(&self, iter: usize, init: &I, f: &F, g: &G)
     where
         T: Debug + Eq,
         A: Debug,

@@ -247,107 +247,52 @@ mod tests {
         assert_eq!(a.select(5, 3), 6);
     }
 
-    const ITERATION: usize = 3;
+    const ITERATION_SPEC: IterationSpec = IterationSpec {
+        large_instance: 3,
+        small_instance: 3,
+        large_query: 10,
+        small_query: 10,
+    };
 
     #[test]
-    fn test_random_access_large() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_large();
-            instance.compare_many(
-                10,
-                |me| me.random_index(),
-                |vector, &i| vector[i],
-                |matrix, &i| matrix.access(i),
-            );
-        }
+    fn test_random_access() {
+        TestInstance::create_and_compare_many(
+            &ITERATION_SPEC,
+            |me| me.random_index(),
+            |vector, &i| vector[i],
+            |matrix, &i| matrix.access(i),
+        );
     }
 
     #[test]
-    fn test_random_access_small() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_small();
-            instance.compare_many(
-                10,
-                |me| me.random_index(),
-                |vector, &i| vector[i],
-                |matrix, &i| matrix.access(i),
-            );
-        }
+    fn test_random_rank() {
+        TestInstance::create_and_compare_many(
+            &ITERATION_SPEC,
+            |me| (me.random_value(), me.random_index()),
+            |vector, &(x, i)| vector[i..].iter().filter(|&&y| y == x).count(),
+            |matrix, &(x, i)| matrix.rank(x, i),
+        );
     }
 
     #[test]
-    fn test_random_rank_large() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_large();
-            instance.compare_many(
-                10,
-                |me| (me.random_value(), me.random_index()),
-                |vector, &(x, i)| vector[i..].iter().filter(|&&y| y == x).count(),
-                |matrix, &(x, i)| matrix.rank(x, i),
-            );
-        }
-    }
-
-    #[test]
-    fn test_random_rank_small() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_small();
-            instance.compare_many(
-                10,
-                |me| (me.random_value(), me.random_index()),
-                |vector, &(x, i)| vector[i..].iter().filter(|&&y| y == x).count(),
-                |matrix, &(x, i)| matrix.rank(x, i),
-            );
-        }
-    }
-
-    #[test]
-    fn test_random_select_large() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_large();
-            instance.compare_many(
-                10,
-                |me| {
-                    let x = me.vector[me.random_index()];
-                    let i = rand::random::<usize>() % me.count(x);
-                    (x, i)
-                },
-                |vector, &(x, i)| {
-                    vector
-                        .iter()
-                        .enumerate()
-                        .filter(|&(_, &y)| y == x)
-                        .nth(i)
-                        .unwrap()
-                        .0
-                },
-                |matrix, &(x, i)| matrix.select(x, i),
-            );
-        }
-    }
-
-    #[test]
-    fn test_random_select_small() {
-        for _ in 0..ITERATION {
-            let instance = TestInstance::new_small();
-            instance.compare_many(
-                10,
-                |me| {
-                    let x = me.vector[me.random_index()];
-                    let i = rand::random::<usize>() % me.count(x);
-                    (x, i)
-                },
-                |vector, &(x, i)| {
-                    vector
-                        .iter()
-                        .enumerate()
-                        .filter(|&(_, &y)| y == x)
-                        .nth(i)
-                        .unwrap()
-                        .0
-                },
-                |matrix, &(x, i)| matrix.select(x, i),
-            );
-        }
+    fn test_random_select() {
+        TestInstance::create_and_compare_many(
+            &ITERATION_SPEC,
+            |me| {
+                let x = me.vector[me.random_index()];
+                let i = rand::random::<usize>() % me.count(x);
+                (x, i)
+            },
+            |vector, &(x, i)| {
+                vector
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, &y)| y == x)
+                    .nth(i)
+                    .unwrap()
+                    .0
+            },
+            |matrix, &(x, i)| matrix.select(x, i),
+        );
     }
 }
