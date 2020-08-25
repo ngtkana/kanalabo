@@ -104,8 +104,8 @@ use std::fmt::{Debug, Formatter};
 #[derive(Debug, Clone)]
 pub struct WaveletMatrixRow {
     pub content: Vec<bool>,
-    pub rank: Vec<usize>,
-    pub select: Vec<usize>,
+    pub rank: Vec<usize>,   // [0, i[ 内の 1 の数です。
+    pub select: Vec<usize>, // rank.lower_bound(i) です。
 }
 
 impl WaveletMatrixRow {
@@ -124,6 +124,16 @@ impl WaveletMatrixRow {
             select,
         }
     }
+
+    // j -> (content[j], j) をソート順に並べたときの、
+    // lower_bound((b, i)) です。
+    pub fn enumerate_lower_bound(&self, b: bool, i: usize) -> usize {
+        if b {
+            self.content.len() - self.rank[self.content.len()] + self.rank[i]
+        } else {
+            i - self.rank[i]
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -133,22 +143,27 @@ pub struct WaveletMatrix {
     table: Vec<WaveletMatrixRow>,
 }
 
-pub struct DebugWavletMatrix<'a>(&'a WaveletMatrix);
-
 impl WaveletMatrix {
     pub fn from_vec_of_u32(mut src: Vec<u32>) -> Self {
-        let height = 3;
+        let height = src
+            .iter()
+            .max()
+            .unwrap()
+            .next_power_of_two()
+            .trailing_zeros() as usize;
         let table = (0..height)
             .rev()
             .map(|i| {
-                let row = src.iter().map(|x| x >> i & 1 == 0).collect::<Vec<_>>();
+                let row = WaveletMatrixRow::from_vec_of_bool(
+                    src.iter().map(|x| x >> i & 1 == 1).collect::<Vec<_>>(),
+                );
                 let (mut left, right) = src
                     .iter()
                     .copied()
                     .partition::<Vec<_>, _>(|x| x >> i & 1 == 0);
                 std::mem::swap(&mut src, &mut left);
                 src.extend(right);
-                WaveletMatrixRow::from_vec_of_bool(row)
+                row
             })
             .collect::<Vec<_>>();
 
@@ -158,19 +173,40 @@ impl WaveletMatrix {
             table,
         }
     }
+
+    pub fn access(&self, mut i: usize) -> u32 {
+        let mut ans = 0;
+        for row in &self.table {
+            ans *= 2;
+            if row.content[i] {
+                ans += 1;
+            }
+            i = row.enumerate_lower_bound(row.content[i], i);
+        }
+        ans
+    }
 }
 
+pub struct DebugWavletMatrixRow<'a>(&'a WaveletMatrixRow);
+impl<'a> Debug for DebugWavletMatrixRow<'a> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .content
+                .iter()
+                .map(|&b| if b { '1' } else { '0' })
+                .collect::<String>()
+        )
+    }
+}
+
+pub struct DebugWavletMatrix<'a>(&'a WaveletMatrix);
 impl<'a> Debug for DebugWavletMatrix<'a> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         for row in &self.0.table {
-            writeln!(
-                f,
-                "{}",
-                row.content
-                    .iter()
-                    .map(|&b| if b { '0' } else { '1' })
-                    .collect::<String>()
-            )?
+            writeln!(f, "{:?}", DebugWavletMatrixRow(&row))?
         }
         Ok(())
     }
@@ -180,11 +216,27 @@ impl<'a> Debug for DebugWavletMatrix<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_hand() {
+    fn sample_hand() -> WaveletMatrix {
         let a = [5, 4, 5, 5, 2, 1, 5, 6, 1, 3, 5, 0];
-        let wavelet_matrix = WaveletMatrix::from_vec_of_u32(a.to_vec());
-        println!("wavelet_matrix:\n{:?}", DebugWavletMatrix(&wavelet_matrix));
+        WaveletMatrix::from_vec_of_u32(a.to_vec())
+    }
+
+    #[test]
+    fn test_hand_access() {
+        let a = sample_hand();
+        print!("a\n{:?}", DebugWavletMatrix(&a));
+        assert_eq!(a.access(0), 5);
+        assert_eq!(a.access(1), 4);
+        assert_eq!(a.access(2), 5);
+        assert_eq!(a.access(3), 5);
+        assert_eq!(a.access(4), 2);
+        assert_eq!(a.access(5), 1);
+        assert_eq!(a.access(6), 5);
+        assert_eq!(a.access(7), 6);
+        assert_eq!(a.access(8), 1);
+        assert_eq!(a.access(9), 3);
+        assert_eq!(a.access(10), 5);
+        assert_eq!(a.access(11), 0);
     }
 
     #[test]
