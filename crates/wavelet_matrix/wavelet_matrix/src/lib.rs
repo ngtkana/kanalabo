@@ -454,13 +454,18 @@ mod tests {
                 (range, k)
             },
             |vector, (range, k)| {
-                let mut map = std::collections::BTreeMap::new();
-                vector[range.clone()].iter().for_each(|x| {
-                    *map.entry(*x).or_insert(0) += 1;
-                });
-                map.iter()
+                let mut map = std::collections::HashMap::new();
+                vector[range.clone()]
+                    .iter()
+                    .for_each(|&x| *map.entry(x).or_insert(0) += 1);
+                let mut res = map
+                    .iter()
+                    .map(|(&value, &frequency)| (frequency, value))
+                    .collect::<Vec<_>>();
+                res.sort_by_key(|&(frequency, value)| std::cmp::Reverse((frequency, value)));
+                res.iter()
                     .take(*k)
-                    .map(|(&value, &count)| (value, count))
+                    .map(|&(frequency, value)| (value, frequency))
                     .collect::<Vec<_>>()
             },
             |matrix, (range, k)| matrix.topk(range.clone(), *k),
