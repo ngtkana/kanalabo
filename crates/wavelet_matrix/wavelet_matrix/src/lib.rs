@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
 
 #[cfg(test)]
 mod test_instance;
@@ -30,6 +33,18 @@ impl WaveletMatrixRow {
             zeroes,
             ones,
         }
+    }
+
+    // start..end 内の 0 の個数
+    #[inline]
+    pub fn count_zeroes(&self, Range { start, end }: Range<usize>) -> usize {
+        end - start - self.count_ones(start..end)
+    }
+
+    // start..end 内の 1 の個数
+    #[inline]
+    pub fn count_ones(&self, Range { start, end }: Range<usize>) -> usize {
+        self.rank[end] - self.rank[start]
     }
 
     // j -> (content[j], j) をソート順に並べたときの、
@@ -135,6 +150,24 @@ impl WaveletMatrix {
         i
     }
 
+    pub fn quantile(&self, Range { mut start, mut end }: Range<usize>, mut k: usize) -> u32 {
+        let mut ans = 0;
+        for row in &self.table {
+            ans *= 2;
+            let zeroes = row.count_zeroes(start..end);
+            if k < zeroes {
+                start = row.enumerate_lower_bound(false, start);
+                end = row.enumerate_lower_bound(false, end);
+            } else {
+                ans += 1;
+                k -= zeroes;
+                start = row.enumerate_lower_bound(true, start);
+                end = row.enumerate_lower_bound(true, end);
+            }
+        }
+        ans
+    }
+
     // 一段目で i だったものが x のビットに従って降りた結果です。
     fn go_down(&self, mut i: usize, x: u32) -> usize {
         assert!(x < 1 << self.height, "入力の値が 2 の高さ乗以上です。");
@@ -201,7 +234,7 @@ mod tests {
     #[test]
     fn test_hand_access() {
         let a = sample_hand();
-        print!("a\n{:?}", DebugWavletMatrix(&a));
+        println!("a\n{:?}", DebugWavletMatrix(&a));
         assert_eq!(a.access(0), 5);
         assert_eq!(a.access(1), 4);
         assert_eq!(a.access(2), 5);
@@ -219,7 +252,7 @@ mod tests {
     #[test]
     fn test_hand_rank() {
         let a = sample_hand();
-        print!("a\n{:?}", DebugWavletMatrix(&a));
+        println!("a\n{:?}", DebugWavletMatrix(&a));
 
         assert_eq!(a.rank(5, 0), 0);
         assert_eq!(a.rank(5, 1), 1);
@@ -239,12 +272,29 @@ mod tests {
     #[test]
     fn test_hand_select() {
         let a = sample_hand();
-        print!("a\n{:?}", DebugWavletMatrix(&a));
+        println!("a\n{:?}", DebugWavletMatrix(&a));
 
         assert_eq!(a.select(5, 0), 0);
         assert_eq!(a.select(5, 1), 2);
         assert_eq!(a.select(5, 2), 3);
         assert_eq!(a.select(5, 3), 6);
+    }
+
+    #[test]
+    fn test_hand_quantile() {
+        let a = sample_hand();
+        println!("a\n{:?}", DebugWavletMatrix(&a));
+
+        assert_eq!(a.quantile(1..11, 0), 1);
+        assert_eq!(a.quantile(1..11, 1), 1);
+        assert_eq!(a.quantile(1..11, 2), 2);
+        assert_eq!(a.quantile(1..11, 3), 3);
+        assert_eq!(a.quantile(1..11, 4), 4);
+        assert_eq!(a.quantile(1..11, 5), 5);
+        assert_eq!(a.quantile(1..11, 6), 5);
+        assert_eq!(a.quantile(1..11, 7), 5);
+        assert_eq!(a.quantile(1..11, 8), 5);
+        assert_eq!(a.quantile(1..11, 9), 6);
     }
 
     const ITERATION_SPEC: IterationSpec = IterationSpec {
@@ -293,6 +343,24 @@ mod tests {
                     .0
             },
             |matrix, &(x, i)| matrix.select(x, i),
+        );
+    }
+
+    #[test]
+    fn test_random_quantile() {
+        TestInstance::create_and_compare_many(
+            &ITERATION_SPEC,
+            |me| {
+                let range = me.random_range();
+                let k = rand::random::<usize>() % (range.end - range.start);
+                (range, k)
+            },
+            |vector, (range, k)| {
+                let mut subseq = vector[range.clone()].to_vec();
+                subseq.sort();
+                subseq[*k]
+            },
+            |matrix, (range, k)| matrix.quantile(range.clone(), *k),
         );
     }
 }

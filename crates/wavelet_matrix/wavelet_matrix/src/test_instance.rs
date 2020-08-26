@@ -1,6 +1,9 @@
 use super::{DebugWavletMatrixWithTab, WaveletMatrix};
 
-use std::{fmt::Debug, ops::Drop};
+use std::{
+    fmt::Debug,
+    ops::{Drop, Range},
+};
 
 pub(super) const VEC_SIZE: usize = 40;
 pub(super) const VALUE_LIMIT_SMALL: u32 = 6;
@@ -72,7 +75,7 @@ impl TestInstance {
         }
         for _ in 0..spec.small_instance {
             let instance = Self::new_small();
-            instance.compare_many(spec.small_instance, &init, &f, &g);
+            instance.compare_many(spec.small_query, &init, &f, &g);
         }
     }
 
@@ -97,6 +100,16 @@ impl TestInstance {
 
     pub fn random_index(&self) -> usize {
         rand::random::<usize>() % self.vector.len()
+    }
+
+    pub fn random_range(&self) -> Range<usize> {
+        let mut start = self.random_index();
+        let mut end = self.random_index();
+        if start > end {
+            std::mem::swap(&mut start, &mut end);
+        }
+        end += 1;
+        Range { start, end }
     }
 
     pub fn random_value(&self) -> u32 {
