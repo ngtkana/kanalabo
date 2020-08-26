@@ -309,6 +309,20 @@ mod tests {
         assert_eq!(a.rank(5, 10), 4);
         assert_eq!(a.rank(5, 11), 5);
         assert_eq!(a.rank(5, 12), 5);
+
+        assert_eq!(a.rank(1, 0), 0);
+        assert_eq!(a.rank(1, 1), 0);
+        assert_eq!(a.rank(1, 2), 0);
+        assert_eq!(a.rank(1, 3), 0);
+        assert_eq!(a.rank(1, 4), 0);
+        assert_eq!(a.rank(1, 5), 0);
+        assert_eq!(a.rank(1, 6), 1);
+        assert_eq!(a.rank(1, 7), 1);
+        assert_eq!(a.rank(1, 8), 1);
+        assert_eq!(a.rank(1, 9), 2);
+        assert_eq!(a.rank(1, 10), 2);
+        assert_eq!(a.rank(1, 11), 2);
+        assert_eq!(a.rank(1, 12), 2);
     }
 
     #[test]
@@ -385,7 +399,7 @@ mod tests {
         TestInstance::create_and_compare_many(
             &ITERATION_SPEC,
             |me| (me.random_value(), me.random_index()),
-            |vector, &(x, i)| vector[i..].iter().filter(|&&y| y == x).count(),
+            |vector, &(x, i)| vector[..i].iter().filter(|&&y| y == x).count(),
             |matrix, &(x, i)| matrix.rank(x, i),
         );
     }
