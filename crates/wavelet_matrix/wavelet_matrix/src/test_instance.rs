@@ -95,6 +95,7 @@ impl TestInstance {
                 let expected = f(&self.vector, &x);
                 let result = g(&self.matrix, &x);
                 println!("\t{:?}\t{:?}\t{:?}", x, expected, result);
+                assert_eq!(expected, result);
             });
     }
 

@@ -168,6 +168,48 @@ impl WaveletMatrix {
         ans
     }
 
+    pub fn topk(&self, Range { start, end }: Range<usize>, k: usize) -> Vec<(u32, usize)> {
+        if k == 0 {
+            Vec::new()
+        } else {
+            let mut res = Vec::new();
+            let mut heap =
+                std::collections::BinaryHeap::from(vec![(end - start, 0, 0, start, end)]);
+            while let Some((frequency, value, row_id, start, end)) = heap.pop() {
+                if frequency == 0 {
+                    continue;
+                }
+                // 最下段
+                if row_id == self.height {
+                    res.push((value, frequency));
+                    if res.len() == k {
+                        return res;
+                    }
+                }
+                // 最下段でない
+                else {
+                    let row = &self.table[row_id];
+                    let bit = 1 << (self.height - 1 - row_id);
+                    for &b in &[false, true] {
+                        let next_row_id = row_id + 1;
+                        let next_value = if b { value + bit } else { value };
+                        let next_start = row.enumerate_lower_bound(b, start);
+                        let next_end = row.enumerate_lower_bound(b, end);
+                        let next_frequency = next_end - next_start;
+                        heap.push((
+                            next_frequency,
+                            next_value,
+                            next_row_id,
+                            next_start,
+                            next_end,
+                        ));
+                    }
+                }
+            }
+            res
+        }
+    }
+
     // 一段目で i だったものが x のビットに従って降りた結果です。
     fn go_down(&self, mut i: usize, x: u32) -> usize {
         assert!(x < 1 << self.height, "入力の値が 2 の高さ乗以上です。");
@@ -297,6 +339,30 @@ mod tests {
         assert_eq!(a.quantile(1..11, 9), 6);
     }
 
+    #[test]
+    fn test_hand_topk() {
+        let a = sample_hand();
+        println!("a\n{:?}", DebugWavletMatrix(&a));
+
+        assert_eq!(a.topk(1..11, 0), Vec::new());
+        assert_eq!(a.topk(1..11, 1), vec![(5, 4)]);
+        assert_eq!(a.topk(1..11, 2), vec![(5, 4), (1, 2)]);
+        assert_eq!(a.topk(1..11, 3), vec![(5, 4), (1, 2), (6, 1)]);
+        assert_eq!(a.topk(1..11, 4), vec![(5, 4), (1, 2), (6, 1), (4, 1)]);
+        assert_eq!(
+            a.topk(1..11, 5),
+            vec![(5, 4), (1, 2), (6, 1), (4, 1), (3, 1)]
+        );
+        assert_eq!(
+            a.topk(1..11, 6),
+            vec![(5, 4), (1, 2), (6, 1), (4, 1), (3, 1), (2, 1)]
+        );
+        assert_eq!(
+            a.topk(1..11, 7),
+            vec![(5, 4), (1, 2), (6, 1), (4, 1), (3, 1), (2, 1)]
+        );
+    }
+
     const ITERATION_SPEC: IterationSpec = IterationSpec {
         large_instance: 3,
         small_instance: 3,
@@ -361,6 +427,29 @@ mod tests {
                 subseq[*k]
             },
             |matrix, (range, k)| matrix.quantile(range.clone(), *k),
+        );
+    }
+
+    #[test]
+    fn test_random_topk() {
+        TestInstance::create_and_compare_many(
+            &ITERATION_SPEC,
+            |me| {
+                let range = me.random_range();
+                let k = rand::random::<usize>() % (range.end - range.start);
+                (range, k)
+            },
+            |vector, (range, k)| {
+                let mut map = std::collections::BTreeMap::new();
+                vector[range.clone()].iter().for_each(|x| {
+                    *map.entry(*x).or_insert(0) += 1;
+                });
+                map.iter()
+                    .take(*k)
+                    .map(|(&value, &count)| (value, count))
+                    .collect::<Vec<_>>()
+            },
+            |matrix, (range, k)| matrix.topk(range.clone(), *k),
         );
     }
 }
