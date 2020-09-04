@@ -19,11 +19,6 @@ where
     }
 
     #[inline]
-    pub fn peek_inner(&self) -> &Mod::Output {
-        &self.0
-    }
-
-    #[inline]
     pub fn into_inner(self) -> Mod::Output {
         self.0
     }
@@ -41,8 +36,8 @@ where
     #[allow(clippy::many_single_char_names)]
     pub fn inv(self) -> Self {
         assert_ne!(
-            self.peek_inner(),
-            &Mod::Output::zero(),
+            self.into_inner(),
+            Mod::Output::zero(),
             "さては 0 の逆元を取ろうとしていますね？"
         );
         let mut x = self.into_inner();
@@ -62,7 +57,7 @@ where
                 && (u == Mod::VALUE || u == -Mod::VALUE)
                 && (-Mod::VALUE < v && v < Mod::VALUE)
         );
-        Self(Self::weakly_normalize_from_the_lower(v))
+        Self(Self::normalize_from_the_top(v))
     }
 
     pub fn pow(mut self, mut p: u64) -> Self {
@@ -79,11 +74,11 @@ where
 
     #[inline]
     fn normalize(src: Mod::Output) -> Mod::Output {
-        Self::weakly_normalize_from_the_lower(src % Mod::VALUE)
+        Self::normalize_from_the_top(src % Mod::VALUE)
     }
 
     #[inline]
-    fn weakly_normalize_from_the_upper(src: Mod::Output) -> Mod::Output {
+    fn normalize_from_the_bottom(src: Mod::Output) -> Mod::Output {
         if Mod::VALUE < src {
             src - Mod::VALUE
         } else {
@@ -92,7 +87,7 @@ where
     }
 
     #[inline]
-    fn weakly_normalize_from_the_lower(src: Mod::Output) -> Mod::Output {
+    fn normalize_from_the_top(src: Mod::Output) -> Mod::Output {
         if src < Mod::Output::zero() {
             src + Mod::VALUE
         } else {
@@ -109,7 +104,7 @@ where
 
     #[inline]
     fn add(self, rhs: Self) -> Self {
-        Self(Self::weakly_normalize_from_the_upper(
+        Self(Self::normalize_from_the_bottom(
             self.into_inner() + rhs.into_inner(),
         ))
     }
@@ -123,7 +118,7 @@ where
 
     #[inline]
     fn sub(self, rhs: Self) -> Self {
-        Self(Self::weakly_normalize_from_the_lower(
+        Self(Self::normalize_from_the_top(
             self.into_inner() - rhs.into_inner(),
         ))
     }
@@ -162,7 +157,7 @@ where
 
     #[inline]
     fn neg(self) -> Self {
-        if self.peek_inner() == &Mod::Output::zero() {
+        if self.into_inner() == Mod::Output::zero() {
             Self::zero()
         } else {
             Self(Mod::VALUE - self.into_inner())
@@ -178,7 +173,7 @@ where
 
     #[inline]
     fn neg(self) -> Fp<Mod> {
-        if self.peek_inner() == &Mod::Output::zero() {
+        if self.into_inner() == Mod::Output::zero() {
             Fp::zero()
         } else {
             Fp(Mod::VALUE - self.into_inner())
@@ -370,19 +365,17 @@ mod tests {
 
     #[test]
     fn test_trait_implementations() {
-        // Debug
-        println!("{:?}", F97::new(42));
+        fn impl_debug<T: fmt::Debug>(_: T) {}
+        fn impl_clone<T: Clone>(_: T) {}
+        fn impl_copy<T: Copy>(_: T) {}
+        fn impl_partial_eq<T: cmp::PartialEq>(_: T) {}
+        fn impl_eq<T: cmp::Eq>(_: T) {}
 
-        // Copy
-        {
-            let x = F97::new(42);
-            let y = x;
-            let _ = x + y;
-        }
-
-        // PartialEq
-        assert_eq!(F97::new(42), F97::new(42));
-        assert_ne!(F97::new(42), F97::new(22));
+        impl_debug(F97::zero());
+        impl_clone(F97::zero());
+        impl_copy(F97::zero());
+        impl_partial_eq(F97::zero());
+        impl_eq(F97::zero());
     }
 
     #[test]
