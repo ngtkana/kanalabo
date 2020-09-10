@@ -1,6 +1,8 @@
 use segtree_value::Value;
 use std::ops::Range;
 
+pub use values::Cat;
+
 #[derive(Debug, Clone)]
 pub struct Segtree<T>
 where
@@ -70,19 +72,24 @@ impl<T: Value> Segtree<T> {
     }
 }
 
+mod values {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Cat(pub String);
+    impl Value for Cat {
+        fn op(&self, b: &Cat) -> Cat {
+            Cat(self.0.chars().chain(b.0.chars()).collect())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_string_concatenation() {
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        struct Cat(String);
-        impl Value for Cat {
-            fn op(&self, b: &Cat) -> Cat {
-                Cat(self.0.chars().chain(b.0.chars()).collect())
-            }
-        }
+    fn test_string_concatenation_hand() {
         use std::iter::once;
         let a = ('0'..='9')
             .map(|c| Cat(once(c).collect::<String>()))
