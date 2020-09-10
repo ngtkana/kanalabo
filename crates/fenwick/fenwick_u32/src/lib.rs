@@ -43,31 +43,20 @@ impl Fenwick {
         }
     }
     pub fn upper_bound(&self, x: &u32) -> usize {
-        let mut l = self.table.len().next_power_of_two() / 2;
-        let mut d = l;
-        let mut now = self.table[l];
-        while d != 1 {
-            d /= 2;
-            if &now <= x {
-                while d != 1 && self.table.len() <= l + d {
-                    d /= 2;
+        let mut d = self.table.len().next_power_of_two() / 2;
+        let mut j = 0;
+        let mut now = 0;
+        while d != 0 {
+            if d + j < self.table.len() {
+                let next = now + self.table[d + j];
+                if &next <= x {
+                    now = next;
+                    j += d;
                 }
-                if self.table.len() <= l + d {
-                    break;
-                }
-                l += d;
-                now += self.table[l];
-            } else {
-                now -= self.table[l];
-                l -= d;
-                now += self.table[l];
             }
+            d /= 2;
         }
-        if &now <= x {
-            l
-        } else {
-            l - 1
-        }
+        j
     }
 }
 #[inline]
@@ -84,9 +73,9 @@ mod tests {
     use std::iter;
 
     const TEST_COUNT: usize = 20;
-    const QUERY_COUNT: usize = 20;
+    const QUERY_COUNT: usize = 2000;
     const VALUE_MININUM: u32 = 0;
-    const VALUE_LIMIT: u32 = 10;
+    const VALUE_LIMIT: u32 = 100;
 
     fn gen_value(rng: &mut StdRng) -> u32 {
         rng.gen_range(VALUE_MININUM, VALUE_LIMIT)
@@ -142,7 +131,10 @@ mod tests {
                     }
                     // upper_bound
                     80..=99 => {
-                        let x = gen_value(&mut rng);
+                        let x = rng.gen_range(
+                            VALUE_MININUM * (a.len() / 2) as u32,
+                            VALUE_LIMIT * (a.len() / 2) as u32,
+                        );
                         let mut b = vec![0; a.len() + 1];
                         for (i, &x) in a.iter().enumerate() {
                             b[i + 1] = b[i] + x;
@@ -153,6 +145,7 @@ mod tests {
                             "Upper bound ( x = {} ) -> ( expected = {}, result = {} ), a = {:?}",
                             x, expected, result, &a
                         );
+                        assert_eq!(expected, result);
                     }
                     100..=std::u32::MAX => unreachable!(),
                 }
