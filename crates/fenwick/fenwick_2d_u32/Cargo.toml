@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 gridtools = { git = "https://github.com/ngtkana/ac-adapter-rs.git", package = "gridtools" }
 dbg = { git = "https://github.com/ngtkana/ac-adapter-rs.git", package = "dbg" }
+seq = { git = "https://github.com/ngtkana/ac-adapter-rs.git", package = "seq" }
 
 [dev-dependencies]
 rand = "0.7.3"

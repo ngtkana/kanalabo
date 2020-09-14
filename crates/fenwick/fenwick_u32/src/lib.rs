@@ -1,3 +1,5 @@
+use std::iter;
+
 pub struct Fenwick {
     pub table: Vec<u32>,
 }
@@ -5,42 +7,36 @@ impl Fenwick {
     pub fn new(zero: u32) -> Self {
         Self { table: vec![zero] }
     }
-    pub fn push(&mut self, mut x: u32) {
+    pub fn push(&mut self, x: u32) {
         let n = self.table.len();
-        let mut d = 1;
-        let k = lsb(n);
-        while d != k {
-            x += self.table[n - d];
-            d *= 2;
-        }
+        let lsb_n = lsb(n);
+        let x = x + iter::successors(Some(1), |&d| Some(2 * d))
+            .take_while(|&d| d != lsb_n)
+            .map(|i| self.table[n - i])
+            .sum::<u32>();
         self.table.push(x);
     }
     pub fn from_slice(src: &[u32]) -> Self {
         let mut table = vec![0; src.len() + 1];
-        for i in 1..table.len() {
-            let x = src[i - 1];
-            table[i] += x;
-            let j = i + lsb(i);
-            if j < table.len() {
-                table[j] += table[i];
-            }
-        }
+        table[1..].copy_from_slice(src);
+        let n = table.len();
+        (1..n)
+            .map(|i| (i, i + lsb(i)))
+            .filter(|&(_, j)| j < n)
+            .for_each(|(i, j)| table[j] += table[i]);
         Self { table }
     }
-    pub fn prefix_sum(&self, mut i: usize) -> u32 {
-        let mut res = 0;
-        while i != 0 {
-            res += self.table[i];
-            i -= lsb(i);
-        }
-        res
+    pub fn prefix_sum(&self, i: usize) -> u32 {
+        iter::successors(Some(i), |&i| Some(i - lsb(i)))
+            .take_while(|&i| i != 0)
+            .map(|i| self.table[i])
+            .sum()
     }
-    pub fn add(&mut self, mut i: usize, x: u32) {
-        i += 1;
-        while i < self.table.len() {
-            self.table[i] += x;
-            i += lsb(i);
-        }
+    pub fn add(&mut self, i: usize, x: u32) {
+        let n = self.table.len();
+        iter::successors(Some(i + 1), |&i| Some(i + lsb(i)))
+            .take_while(|&i| i < n)
+            .for_each(|i| self.table[i] += x)
     }
     pub fn upper_bound(&self, x: &u32) -> usize {
         let mut d = self.table.len().next_power_of_two() / 2;
@@ -61,8 +57,7 @@ impl Fenwick {
 }
 #[inline]
 fn lsb(i: usize) -> usize {
-    let i = i as isize;
-    (i & -i) as usize
+    i & !(i.saturating_sub(1))
 }
 
 #[cfg(test)]

@@ -1,67 +1,86 @@
-#[macro_use]
-extern crate dbg;
+use std::iter;
+
 use gridtools::exact_size_of_grid;
-use std::ops;
 
 pub struct Fenwick2d {
     pub table: Vec<Vec<u32>>,
 }
 impl Fenwick2d {
+    pub fn new() -> Self {
+        Self {
+            table: vec![vec![0]],
+        }
+    }
+    pub fn push(&mut self, i: usize, mut x: u32) {
+        assert!(i < self.table.len());
+        let i = i + 1;
+        if i == 1 {
+            self.table[0].push(0);
+        }
+        if i == self.table.len() {
+            self.table.push(vec![0]);
+        }
+        let j = self.table[i].len();
+        iter::successors(Some(lsb(i)), |&d| Some(d / 2)).for_each(|d| x += self.table[i - d][j]);
+        iter::successors(Some(lsb(j)), |&e| Some(e / 2)).for_each(|e| x += self.table[i][j - e]);
+        seq::cartesian_product(
+            iter::successors(Some(lsb(i)), |&d| Some(d / 2)),
+            iter::successors(Some(lsb(j)), |&e| Some(e / 2)),
+        )
+        .for_each(|(d, e)| x -= self.table[i - d][j - e]);
+        self.table[i].push(x);
+    }
     pub fn from_slice_vec(src: &[Vec<u32>]) -> Self {
         let (h, w) = exact_size_of_grid(src);
-        let mut table = vec![vec![0; w + 1]; h + 1];
-        for i in 1..=h {
-            for j in 1..=w {
-                table[i][j] += src[i - 1][j - 1];
-                let next_j = j + lsb(j);
-                if next_j <= w {
-                    let x = table[i][j];
-                    table[i][next_j] += x;
-                }
-            }
+        let mut table = iter::once(vec![0; w + 1])
+            .chain(
+                src.iter()
+                    .map(|v| iter::once(0).chain(v.iter().copied()).collect::<Vec<_>>()),
+            )
+            .collect::<Vec<_>>();
+        for ((i, next_i), j) in seq::cartesian_product(
+            (1..=h)
+                .map(|i| (i, i + lsb(i)))
+                .filter(|&(_, next_i)| next_i <= h),
+            1..=w,
+        ) {
+            let x = table[i][j];
+            table[next_i][j] += x
         }
-        for i in 1..=h {
-            for j in 1..=w {
-                let next_i = i + lsb(i);
-                if next_i <= h {
-                    let x = table[i][j];
-                    table[next_i][j] += x;
-                }
-            }
+        for ((j, next_j), i) in seq::cartesian_product(
+            (1..=w)
+                .map(|j| (j, j + lsb(j)))
+                .filter(|&(_, next_j)| next_j <= w),
+            1..=h,
+        ) {
+            let x = table[i][j];
+            table[i][next_j] += x
         }
         Self { table }
     }
-    pub fn double_prefix_sum(&self, mut i: usize, j: usize) -> u32 {
-        let mut res = 0;
-        while i != 0 {
-            let mut j = j;
-            while j != 0 {
-                res += self.table[i][j];
-                j -= lsb(j);
-            }
-            i -= lsb(i);
-        }
-        res
+    pub fn double_prefix_sum(&self, i: usize, j: usize) -> u32 {
+        seq::cartesian_product(
+            iter::successors(Some(i), |&i| Some(i - lsb(i))).take_while(|&i| i != 0),
+            iter::successors(Some(j), |&j| Some(j - lsb(j))).take_while(|&j| j != 0),
+        )
+        .map(|(i, j)| self.table[i][j])
+        .sum()
     }
-    pub fn add(&mut self, mut i: usize, mut j: usize, x: u32) {
+    pub fn add(&mut self, i: usize, j: usize, x: u32) {
         let (h, w) = exact_size_of_grid(&self.table);
-        i += 1;
-        j += 1;
-        while i < h {
-            let mut j = j;
-            while j < w {
-                self.table[i][j] += x;
-                j += lsb(j);
-            }
-            i += lsb(i);
-        }
+        seq::cartesian_product(
+            iter::successors(Some(i + 1), |&i| Some(i + lsb(i))).take_while(|&i| i < h),
+            iter::successors(Some(j + 1), |&j| Some(j + lsb(j))).take_while(|&j| j < w),
+        )
+        .for_each(|(i, j)| self.table[i][j] += x);
     }
     pub fn horizontal_upper_bound(&self, i: usize, x: &u32) -> usize {
         let table_width = exact_size_of_grid(&self.table).1;
-        let mut d = table_width.next_power_of_two() / 2;
         let mut j = 0;
         let mut now = 0;
-        while d != 0 {
+        for d in iter::successors(Some(table_width.next_power_of_two() / 2), |&d| Some(d / 2))
+            .take_while(|&d| d != 0)
+        {
             if j + d < table_width {
                 let next = now + self.i_prefix_sum_j_raw_element(i, j + d);
                 if &next <= x {
@@ -69,23 +88,19 @@ impl Fenwick2d {
                     now = next;
                 }
             }
-            d /= 2;
         }
         j
     }
-    fn i_prefix_sum_j_raw_element(&self, mut i: usize, j: usize) -> u32 {
-        let mut res = 0;
-        while i != 0 {
-            res += self.table[i][j];
-            i -= lsb(i);
-        }
-        res
+    fn i_prefix_sum_j_raw_element(&self, i: usize, j: usize) -> u32 {
+        iter::successors(Some(i), |&i| Some(i - lsb(i)))
+            .take_while(|&j| j != 0)
+            .map(|i| self.table[i][j])
+            .sum()
     }
 }
 #[inline]
 fn lsb(i: usize) -> usize {
-    let i = i as isize;
-    (i & -i) as usize
+    i & i.wrapping_neg()
 }
 
 #[cfg(test)]
@@ -113,9 +128,9 @@ mod tests {
         let mut rng: StdRng = SeedableRng::seed_from_u64(42);
 
         for _ in 0..TEST_COUNT {
+            let h = rng.gen_range(6, 20);
+            let w = rng.gen_range(6, 20);
             let mut table = {
-                let h = rng.gen_range(6, 20);
-                let w = rng.gen_range(6, 20);
                 iter::repeat_with(|| {
                     iter::repeat_with(|| gen_value(&mut rng))
                         .take(w)
@@ -126,7 +141,11 @@ mod tests {
             };
             let mut fenwick = Fenwick2d::from_slice_vec(&table);
 
-            println!("CREATED AN INSTANCE: table = {:?}", &table);
+            println!(
+                "CREATED AN INSTANCE:\ntable:\n{:?}fenwick:\n{:?}",
+                dbg::Tabular(&table),
+                dbg::Tabular(&fenwick.table)
+            );
 
             for _ in 0..QUERY_COUNT {
                 let (h, w) = exact_size_of_grid(&table);
