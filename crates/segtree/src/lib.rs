@@ -3,7 +3,7 @@ mod queries;
 pub mod traits;
 mod vector;
 
-use std::ops::RangeBounds;
+use std::ops::{Range, RangeBounds};
 use traits::Identity;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,15 +12,59 @@ pub struct Segtree<T: Identity> {
     table: Vec<T::Value>,
 }
 impl<T: Identity> Segtree<T> {
-    pub fn from_slice(_src: &[T::Value]) -> Self {
-        todo!()
+    pub fn from_slice(src: &[T::Value]) -> Self {
+        let mut table = src.iter().chain(src.iter()).cloned().collect::<Vec<_>>();
+        let len = src.len();
+        for i in (1..len).rev() {
+            table[i] = T::op(table[2 * i].clone(), table[2 * i + 1].clone())
+        }
+        Segtree { len, table }
     }
-    pub fn set(&mut self, _i: usize, _x: T::Value) {
-        todo!()
+    pub fn set(&mut self, mut i: usize, x: T::Value) {
+        i += self.len;
+        self.table[i] = x;
+        i >>= 1;
+        while 0 != i {
+            self.update(i);
+            i >>= 1;
+        }
     }
-    pub fn fold(&self, _range: impl RangeBounds<usize>) -> T::Value {
-        todo!()
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> T::Value {
+        let Range { mut start, mut end } = open(self.len, range);
+        start += self.len;
+        end += self.len;
+        let mut left = T::identity();
+        let mut right = T::identity();
+        while start != end {
+            if start % 2 == 1 {
+                T::op_left(&mut left, &self.table[start]);
+                start += 1;
+            }
+            if end % 2 == 1 {
+                end -= 1;
+                T::op_right(&self.table[end], &mut right);
+            }
+            start >>= 1;
+            end >>= 1;
+        }
+        T::op(left, right)
     }
+    fn update(&mut self, i: usize) {
+        self.table[i] = T::op(self.table[2 * i].clone(), self.table[2 * i + 1].clone())
+    }
+}
+
+fn open(len: usize, range: impl RangeBounds<usize>) -> Range<usize> {
+    use std::ops::Bound::*;
+    (match range.start_bound() {
+        Unbounded => 0,
+        Included(&x) => x,
+        Excluded(&x) => x + 1,
+    })..(match range.end_bound() {
+        Excluded(&x) => x,
+        Included(&x) => x + 1,
+        Unbounded => len,
+    })
 }
 
 #[cfg(test)]
