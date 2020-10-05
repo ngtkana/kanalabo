@@ -135,8 +135,7 @@ mod tests {
             }
         }
 
-        let mut tester =
-            Tester::<InversionMerge, G>::new(StdRng::seed_from_u64(42), query_test::CONFIG);
+        let mut tester = Tester::<InversionMerge, G>::new(StdRng::seed_from_u64(42));
         for _ in 0..4 {
             tester.initialize();
             for _ in 0..100 {
