@@ -1,16 +1,26 @@
 use query_test::Query;
+use query_test_derive::query;
 use std::{marker::PhantomData, ops::Range};
 
+#[query(fn(usize, T))]
 pub struct Set<T>(PhantomData<T>);
-impl<T> Query for Set<T> {
-    type Param = (usize, T);
-    type Output = ();
-    const NAME: &'static str = "set";
-}
 
+#[query(fn(Range<usize>) -> T)]
 pub struct Fold<T>(PhantomData<T>);
-impl<T> Query for Fold<T> {
-    type Param = Range<usize>;
-    type Output = T;
-    const NAME: &'static str = "fold";
+
+#[cfg(test)]
+mod test {
+    use super::{Fold, Set};
+    use assert_impl::assert_impl;
+    use query_test::Query;
+    use std::ops::Range;
+
+    #[test]
+    fn test_impl() {
+        assert_impl!(Query<Param = (usize, u32), Output = ()>: Set<u32>);
+        assert_impl!(!Query<Param = ((usize, u32),), Output = ()>: Set<u32>);
+
+        assert_impl!(Query<Param = Range<usize>, Output = u32>: Fold<u32>);
+        assert_impl!(!Query<Param = (Range<usize>,), Output = u32>: Fold<u32>);
+    }
 }
